@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+@theme {
+  --color-surface: #0f172a;
+  --color-surface-card: #1e293b;
+  --color-surface-hover: #334155;
+  --color-ph: #0038a8;
+  --color-phred: #ce1126;
+  --color-phyellow: #fcd116;
+
+  --font-display: "Playfair Display", serif;
+  --font-body: "DM Sans", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-surface);
+  color: #f1f5f9;
+  margin: 0;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #1e293b; }
+::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+/* Leaflet dark overrides */
+.leaflet-container { font-family: var(--font-body); }
+
+.leaflet-popup-content-wrapper {
+  background: #1e293b !important;
+  border: 1px solid rgba(255,255,255,0.1) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4) !important;
+  color: white !important;
+  padding: 0 !important;
+}
+
+.leaflet-popup-tip { background: #1e293b !important; }
+.leaflet-popup-content { margin: 0 !important; }
+
+.leaflet-control-zoom a {
+  background: #1e293b !important;
+  border-color: rgba(255,255,255,0.1) !important;
+  color: white !important;
+}
+
+.leaflet-control-zoom a:hover { background: #334155 !important; }
+.leaflet-bar { border: 1px solid rgba(255,255,255,0.1) !important; }
+
+/* Custom marker */
+@keyframes markerPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(59,130,246,0.6); }
+  70%  { box-shadow: 0 0 0 10px rgba(59,130,246,0); }
+  100% { box-shadow: 0 0 0 0 rgba(59,130,246,0); }
+}
+
+.note-marker-icon { background: none; border: none; }
+
+/* Transitions */
+.fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
+
+.modal-enter-active, .modal-leave-active { transition: all 0.25s ease; }
+.modal-enter-from, .modal-leave-to { opacity: 0; transform: scale(0.95); }
+
+.panel-enter-active, .panel-leave-active { transition: all 0.3s ease; }
+.panel-enter-from { transform: translateX(100%); opacity: 0; }
+.panel-leave-to { transform: translateX(100%); opacity: 0; }
+
+.slide-up-enter-active, .slide-up-leave-active { transition: all 0.4s ease; }
+.slide-up-enter-from, .slide-up-leave-to { opacity: 0; transform: translateY(16px); }
+
+.toast-enter-active, .toast-leave-active { transition: all 0.3s ease; }
+.toast-enter-from, .toast-leave-to { opacity: 0; transform: translateY(20px); }
