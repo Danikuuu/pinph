@@ -42,16 +42,29 @@ export interface AuthResponse {
   token: string
 }
 
-export interface ApiResponse<T> {
-  success: boolean
-  data: T
-  message?: string
+export interface UserProfile {
+  _id: string;
+  username: string;
+  email: string;
+  bio?: string;
+  avatar?: string;
+  createdAt: string;
+}
+
+export interface UpdateProfileData {
+  bio?: string;
 }
 
 export interface PaginatedNotes {
   notes: Note[]
   total: number
   pages: number
+}
+
+export interface ApiResponse<T> {
+  success: boolean
+  data: T
+  message?: string
 }
 
 export interface CreateNotePayload {

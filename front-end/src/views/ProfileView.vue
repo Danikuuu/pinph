@@ -5,7 +5,8 @@
       <div class="rounded-2xl p-6 flex items-start gap-5" style="background: #1e293b; border: 1px solid rgba(255,255,255,0.06);">
         <div class="w-20 h-20 rounded-2xl flex items-center justify-center text-3xl font-bold text-white flex-shrink-0"
           style="background: linear-gradient(135deg, #3b82f6, #8b5cf6); box-shadow: 0 8px 24px rgba(59,130,246,0.3);">
-          {{ authStore.user.username[0].toUpperCase() }}
+         {{ authStore.user?.username?.[0]?.toUpperCase() ?? '' }}
+
         </div>
         <div class="flex-1">
           <h1 class="text-2xl font-bold text-white" style="font-family:'Playfair Display',serif;">{{ authStore.user.username }}</h1>
@@ -89,8 +90,11 @@ onMounted(async () => {
   try {
     const res = await notesAPI.getMyNotes()
     myNotes.value = res.data.data
-  } finally { loadingNotes.value = false }
+  } finally {
+    loadingNotes.value = false
+  }
 })
+
 
 async function saveBio() {
   try {
@@ -107,9 +111,13 @@ async function handleLike(id: string) {
 async function handleSave(id: string) {
   try {
     const res = await notesAPI.toggleSave(id)
+    // res.data.data is already Note, no extra .data
     toastStore.success(res.data.data.saved ? 'Saved!' : 'Unsaved')
-  } catch { toastStore.error('Failed') }
+  } catch {
+    toastStore.error('Failed')
+  }
 }
+
 
 function formatDate(d: string) {
   return new Date(d).toLocaleDateString('en-PH', { year: 'numeric', month: 'long' })
