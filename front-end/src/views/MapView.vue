@@ -1,10 +1,10 @@
 <template>
-  <div class="flex flex-col" style="height: 100vh; padding-top: 56px;">
+  <div class="flex flex-col map-page" style="height: 100vh; padding-top: 56px;">
 
     <!-- Toolbar -->
-    <div class="flex items-center gap-3 px-4 py-2.5 z-10 relative"
+    <div class="flex items-center gap-2 px-3 sm:px-4 py-2.5 z-20 relative flex-wrap"
       style="background: rgba(15,23,42,0.9); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,0.05);">
-      <div class="flex-1 relative max-w-md">
+      <div class="relative w-full lg:max-w-md lg:flex-1 order-1 lg:order-none">
         <span class="absolute left-3 top-1/2 -translate-y-1/2" style="color: #64748b;">🔍</span>
         <input v-model="searchQuery" @input="debouncedSearch" type="text" placeholder="Search notes..."
           class="w-full rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:outline-none"
@@ -14,7 +14,7 @@
       </div>
 
       <!-- Mode toggle -->
-      <div class="flex rounded-lg p-1" style="background: #1e293b; border: 1px solid rgba(255,255,255,0.05);">
+      <div class="flex rounded-lg p-1 order-2 lg:order-none" style="background: #1e293b; border: 1px solid rgba(255,255,255,0.05);">
         <button v-for="mode in (['all', 'nearby'] as const)" :key="mode"
           @click="setMode(mode)"
           class="px-3 py-1 rounded text-xs font-medium transition-all border-0 cursor-pointer capitalize"
@@ -25,18 +25,26 @@
         </button>
       </div>
 
-      <span class="text-xs" style="color: #475569;">{{ notesStore.notes.length }} notes</span>
+      <span class="text-xs hidden sm:inline order-3 lg:order-none" style="color: #475569;">{{ notesStore.notes.length }} notes</span>
 
       <button v-if="authStore.isLoggedIn" @click="toggleDropMode"
-        class="px-4 py-2 rounded-lg text-sm font-medium text-white border-0 cursor-pointer transition-all"
+        class="px-3 sm:px-4 py-2 rounded-lg text-sm font-medium text-white border-0 cursor-pointer transition-all order-4 lg:order-none"
         :style="dropMode ? 'background: #f97316;' : 'background: #3b82f6;'">
         {{ dropMode ? '✕ Cancel' : '+ Drop Note' }}
       </button>
       <router-link v-else to="/login"
-        class="px-4 py-2 rounded-lg text-sm font-medium text-white no-underline"
+        class="px-3 sm:px-4 py-2 rounded-lg text-sm font-medium text-white no-underline order-4 lg:order-none"
         style="background: #3b82f6;">
         Login to Drop
       </router-link>
+
+      <button
+        class="lg:hidden px-3 py-2 rounded-lg text-xs font-medium border cursor-pointer order-5"
+        style="background: #1e293b; border-color: rgba(255,255,255,0.08); color: #cbd5e1;"
+        @click="isMobileSidebarOpen = !isMobileSidebarOpen"
+      >
+        {{ isMobileSidebarOpen ? 'Hide List' : 'Show List' }}
+      </button>
     </div>
 
     <!-- Drop mode banner -->
@@ -48,12 +56,13 @@
     </transition>
 
     <!-- Main content -->
-    <div class="flex flex-1 overflow-hidden">
+    <div class="flex flex-1 overflow-hidden relative">
 
       <!-- Sidebar -->
-      <div class="overflow-y-auto flex-shrink-0"
-        :style="panelNote ? 'display:none;' : 'display:flex; flex-direction:column;'"
-        style="width: 320px; background: #0f172a; border-right: 1px solid rgba(255,255,255,0.05);">
+      <div
+        class="overflow-y-auto flex-shrink-0 map-sidebar"
+        :class="{ open: isDesktop || isMobileSidebarOpen, hiddenDesktop: !!panelNote && isDesktop }"
+        style="background: #0f172a; border-right: 1px solid rgba(255,255,255,0.05);">
         <div class="p-3 space-y-2.5">
           <p v-if="notesStore.loading" class="text-center py-8 text-sm" style="color: #64748b;">Loading notes...</p>
           <p v-else-if="!notesStore.notes.length" class="text-center py-8 text-sm" style="color: #64748b;">No notes found</p>
@@ -90,8 +99,11 @@
 
       <!-- Detail panel -->
       <transition name="panel">
-        <div v-if="panelNote" class="flex-shrink-0 flex flex-col overflow-hidden"
-          style="width: 384px; background: #0f172a; border-left: 1px solid rgba(255,255,255,0.05);">
+        <div
+          v-if="panelNote"
+          class="flex-shrink-0 flex flex-col overflow-hidden map-detail-panel"
+          :class="{ mobileOpen: !!panelNote && !isDesktop }"
+          style="background: #0f172a; border-left: 1px solid rgba(255,255,255,0.05);">
           <NoteDetail :note="panelNote" @close="panelNote = null" @deleted="panelNote = null" />
         </div>
       </transition>
@@ -113,7 +125,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import NoteCard         from '../components/NoteCard.vue'
@@ -138,6 +150,8 @@ const pendingLng      = ref<number | null>(null)
 const searchQuery     = ref('')
 const cursorLat       = ref<number | null>(null)
 const cursorLng       = ref<number | null>(null)
+const isDesktop       = ref(window.innerWidth >= 1024)
+const isMobileSidebarOpen = ref(false)
 
 let map: L.Map | null = null
 let markersLayer: L.LayerGroup | null = null
@@ -148,11 +162,28 @@ const PH_CENTER: [number, number] = [12.8797, 121.7740]
 const PH_ZOOM = 6
 
 onMounted(async () => {
+  updateViewportState()
+  window.addEventListener('resize', updateViewportState)
   initMap()
   await loadNotes()
 })
 
-onBeforeUnmount(() => { map?.remove() })
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', updateViewportState)
+  map?.remove()
+})
+
+watch([panelNote, isMobileSidebarOpen, isDesktop], async () => {
+  await nextTick()
+  map?.invalidateSize()
+})
+
+function updateViewportState() {
+  isDesktop.value = window.innerWidth >= 1024
+  if (isDesktop.value) {
+    isMobileSidebarOpen.value = false
+  }
+}
 
 function initMap() {
   if (!mapEl.value) return
@@ -267,6 +298,9 @@ function toggleDropMode() {
 
 function openNote(note: Note) {
   panelNote.value = note
+  if (!isDesktop.value) {
+    isMobileSidebarOpen.value = false
+  }
   const [lng, lat] = note.location.coordinates
   map?.setView([lat, lng], Math.max(map.getZoom(), 13), { animate: true })
 }
@@ -306,3 +340,49 @@ function debouncedSearch() {
   searchTimer = setTimeout(() => loadAll(), 400)
 }
 </script>
+
+<style scoped>
+.map-sidebar {
+  width: 320px;
+}
+
+.map-detail-panel {
+  width: 384px;
+}
+
+@media (max-width: 1023px) {
+  .map-sidebar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: min(85vw, 360px);
+    z-index: 35;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    border-right: 1px solid rgba(255,255,255,0.05);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+  }
+
+  .map-sidebar.open {
+    transform: translateX(0);
+  }
+
+  .map-detail-panel {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: min(100vw, 420px);
+    z-index: 40;
+    border-left: 1px solid rgba(255,255,255,0.05);
+    box-shadow: -8px 0 20px rgba(0, 0, 0, 0.35);
+  }
+}
+
+@media (min-width: 1024px) {
+  .hiddenDesktop {
+    display: none;
+  }
+}
+</style>
