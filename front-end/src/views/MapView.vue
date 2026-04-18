@@ -45,13 +45,76 @@
       >
         {{ isMobileSidebarOpen ? 'Hide List' : 'Show List' }}
       </button>
+
+      <button
+        v-if="authStore.isLoggedIn"
+        type="button"
+        class="px-3 py-2 rounded-lg text-xs font-medium border-0 cursor-pointer order-6 text-white"
+        style="background: #0ea5e9;"
+        title="Add a note at your current GPS location"
+        @click="dropNoteAtMyLocation"
+      >
+        📍 Here
+      </button>
+    </div>
+
+    <!-- Find a place (geocode — separate from note search) -->
+    <div class="relative z-20 px-3 sm:px-4 pb-2.5"
+      style="background: rgba(15,23,42,0.9); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,0.05);">
+      <div class="relative max-w-xl">
+        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm" style="color: #64748b;">🌐</span>
+        <input
+          v-model="placeQuery"
+          type="search"
+          autocomplete="off"
+          placeholder="Find a place on the map…"
+          class="w-full rounded-lg pl-9 pr-3 py-2 text-sm text-white focus:outline-none"
+          style="background: #1e293b; border: 1px solid rgba(255,255,255,0.08);"
+          @input="debouncedPlaceSearch"
+          @focus="(e) => (e.target as HTMLElement).style.borderColor='rgba(96,165,250,0.4)'"
+          @blur="(e) => (e.target as HTMLElement).style.borderColor='rgba(255,255,255,0.08)'"
+        />
+        <div
+          v-if="placeResults.length"
+          class="absolute left-0 right-0 top-full mt-1 rounded-lg overflow-hidden shadow-lg max-h-56 overflow-y-auto"
+          style="background: #1e293b; border: 1px solid rgba(255,255,255,0.1); z-index: 1200;"
+        >
+          <button
+            v-for="(p, i) in placeResults"
+            :key="i"
+            type="button"
+            class="w-full text-left px-3 py-2.5 text-sm border-0 cursor-pointer transition-colors"
+            style="color: #e2e8f0; background: transparent; border-bottom: 1px solid rgba(255,255,255,0.05);"
+            @mousedown.prevent="selectPlaceResult(p)"
+          >
+            {{ p.label }}
+          </button>
+        </div>
+        <p v-if="placeSearching" class="text-xs mt-1" style="color: #64748b;">Searching…</p>
+      </div>
+      <p v-if="pickedPlace" class="text-xs mt-2 flex flex-wrap items-center gap-2" style="color: #94a3b8;">
+        <span class="truncate max-w-full">{{ pickedPlace.label }}</span>
+        <button
+          v-if="authStore.isLoggedIn"
+          type="button"
+          class="text-xs font-medium px-2 py-1 rounded-md border-0 cursor-pointer text-white shrink-0"
+          style="background: #3b82f6;"
+          @click="openCreateAtPickedPlace"
+        >
+          Add note here
+        </button>
+        <button type="button" class="text-xs underline border-0 bg-transparent cursor-pointer shrink-0" style="color: #64748b;"
+          @click="clearPickedPlace">
+          Clear
+        </button>
+      </p>
     </div>
 
     <!-- Drop mode banner -->
     <transition name="fade">
       <div v-if="dropMode" class="relative z-10 text-center text-sm py-2"
         style="background: rgba(249,115,22,0.15); border-bottom: 1px solid rgba(249,115,22,0.25); color: #fb923c;">
-        🖱️ Click anywhere on the map to drop a note
+        Tap or click anywhere on the map to drop a note
       </div>
     </transition>
 
@@ -102,7 +165,6 @@
         <div
           v-if="panelNote"
           class="flex-shrink-0 flex flex-col overflow-hidden map-detail-panel"
-          :class="{ mobileOpen: !!panelNote && !isDesktop }"
           style="background: #0f172a; border-left: 1px solid rgba(255,255,255,0.05);">
           <NoteDetail :note="panelNote" @close="panelNote = null" @deleted="panelNote = null" />
         </div>
@@ -153,10 +215,17 @@ const cursorLng       = ref<number | null>(null)
 const isDesktop       = ref(window.innerWidth >= 1024)
 const isMobileSidebarOpen = ref(false)
 
+const placeQuery      = ref('')
+const placeResults    = ref<{ label: string; lat: number; lon: number }[]>([])
+const placeSearching  = ref(false)
+const pickedPlace     = ref<{ label: string; lat: number; lon: number } | null>(null)
+
 let map: L.Map | null = null
 let markersLayer: L.LayerGroup | null = null
 let pendingMarker: L.Marker | null = null
+let pickedPlaceMarker: L.Marker | null = null
 let searchTimer: ReturnType<typeof setTimeout>
+let placeSearchTimer: ReturnType<typeof setTimeout>
 
 const PH_CENTER: [number, number] = [12.8797, 121.7740]
 const PH_ZOOM = 6
@@ -170,6 +239,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', updateViewportState)
+  clearPickedPlaceMarker()
   map?.remove()
 })
 
@@ -286,6 +356,13 @@ function clearPending() {
   if (pendingMarker && map) { map.removeLayer(pendingMarker); pendingMarker = null }
 }
 
+function clearPickedPlaceMarker() {
+  if (pickedPlaceMarker && map) {
+    map.removeLayer(pickedPlaceMarker)
+    pickedPlaceMarker = null
+  }
+}
+
 function closeModal() {
   showCreateModal.value = false
   clearPending()
@@ -339,6 +416,132 @@ function debouncedSearch() {
   clearTimeout(searchTimer)
   searchTimer = setTimeout(() => loadAll(), 400)
 }
+
+function debouncedPlaceSearch() {
+  clearTimeout(placeSearchTimer)
+  placeSearchTimer = setTimeout(() => searchPlaces(), 400)
+}
+
+function formatPhotonLabel(props: Record<string, unknown> | undefined): string {
+  if (!props) return 'Unknown place'
+  const name = typeof props.name === 'string' ? props.name : ''
+  const city = typeof props.city === 'string' ? props.city : typeof props.town === 'string' ? props.town : typeof props.village === 'string' ? props.village : ''
+  const region = typeof props.state === 'string' ? props.state : typeof props.county === 'string' ? props.county : ''
+  const country = typeof props.country === 'string' ? props.country : ''
+  const parts = [name, [city, region].filter(Boolean).join(', '), country].filter(Boolean)
+  return parts.join(' · ') || 'Unknown place'
+}
+
+async function searchPlaces() {
+  const q = placeQuery.value.trim()
+  if (q.length < 2) {
+    placeResults.value = []
+    return
+  }
+  placeSearching.value = true
+  try {
+    const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=8&lang=en`
+    const res = await fetch(url)
+    if (!res.ok) throw new Error('search failed')
+    const data = await res.json()
+    const feats = Array.isArray(data.features) ? data.features : []
+    placeResults.value = feats
+      .map((f: { geometry?: { coordinates?: number[] }; properties?: Record<string, unknown> }) => {
+        const coords = f.geometry?.coordinates
+        if (!coords || coords.length < 2) return null
+        const [lon, lat] = coords
+        return {
+          label: formatPhotonLabel(f.properties),
+          lat,
+          lon,
+        }
+      })
+      .filter(Boolean) as { label: string; lat: number; lon: number }[]
+  } catch {
+    toastStore.error('Could not search places. Try again.')
+    placeResults.value = []
+  } finally {
+    placeSearching.value = false
+  }
+}
+
+function selectPlaceResult(p: { label: string; lat: number; lon: number }) {
+  placeResults.value = []
+  pickedPlace.value = p
+  clearPickedPlaceMarker()
+  if (map) {
+    pickedPlaceMarker = L.marker([p.lat, p.lon], {
+      icon: L.divIcon({
+        html: `<div style="width:22px;height:22px;border-radius:50%;background:#38bdf8;border:3px solid white;box-shadow:0 2px 10px rgba(0,0,0,0.35);"></div>`,
+        className: '',
+        iconSize: [22, 22],
+        iconAnchor: [11, 11],
+      }),
+    }).addTo(map)
+    map.flyTo([p.lat, p.lon], Math.max(map.getZoom(), 14), { animate: true })
+  }
+}
+
+function clearPickedPlace() {
+  pickedPlace.value = null
+  clearPickedPlaceMarker()
+}
+
+function openCreateAtPickedPlace() {
+  const p = pickedPlace.value
+  if (!p) return
+  if (!authStore.isLoggedIn) {
+    toastStore.info('Login to drop notes')
+    return
+  }
+  openCreateAtLocation(p.lat, p.lon)
+}
+
+function dropNoteAtMyLocation() {
+  if (!authStore.isLoggedIn) {
+    toastStore.info('Login to drop notes')
+    return
+  }
+  dropMode.value = false
+  if (map) map.getContainer().style.cursor = ''
+  if (!navigator.geolocation) {
+    toastStore.error('Geolocation is not supported in this browser')
+    return
+  }
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const { latitude: lat, longitude: lon } = pos.coords
+      if (map) map.flyTo([lat, lon], Math.max(map.getZoom(), 14), { animate: true })
+      openCreateAtLocation(lat, lon)
+    },
+    () => toastStore.error('Could not get your location. Check permissions.'),
+    { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
+  )
+}
+
+function openCreateAtLocation(lat: number, lng: number) {
+  if (!authStore.isLoggedIn) {
+    toastStore.info('Login to drop notes')
+    return
+  }
+  clearPickedPlaceMarker()
+  pickedPlace.value = null
+  placeResults.value = []
+  pendingLat.value = lat
+  pendingLng.value = lng
+  clearPending()
+  if (map) {
+    pendingMarker = L.marker([lat, lng], {
+      icon: L.divIcon({
+        html: `<div style="width:16px;height:16px;border-radius:50%;background:#f97316;border:3px solid white;box-shadow:0 0 0 0 rgba(249,115,22,0.6);animation:markerPulse 1s infinite;"></div>`,
+        className: '',
+        iconSize: [16, 16],
+        iconAnchor: [8, 8],
+      }),
+    }).addTo(map)
+  }
+  showCreateModal.value = true
+}
 </script>
 
 <style scoped>
@@ -357,7 +560,8 @@ function debouncedSearch() {
     top: 0;
     bottom: 0;
     width: min(85vw, 360px);
-    z-index: 35;
+    /* Above Leaflet map panes (~400) so list and note detail are visible on touch devices */
+    z-index: 1050;
     transform: translateX(-100%);
     transition: transform 0.25s ease;
     border-right: 1px solid rgba(255,255,255,0.05);
@@ -374,7 +578,7 @@ function debouncedSearch() {
     top: 0;
     bottom: 0;
     width: min(100vw, 420px);
-    z-index: 40;
+    z-index: 1100;
     border-left: 1px solid rgba(255,255,255,0.05);
     box-shadow: -8px 0 20px rgba(0, 0, 0, 0.35);
   }
