@@ -8,6 +8,7 @@ const router = createRouter({
     { path: '/map',      name: 'Map',      component: () => import('../views/MapView.vue') },
     { path: '/login',    name: 'Login',    component: () => import('../views/LoginView.vue') },
     { path: '/register', name: 'Register', component: () => import('../views/RegisterView.vue') },
+    { path: '/signup',   redirect: '/register' },
     { path: '/profile',  name: 'Profile',  component: () => import('../views/ProfileView.vue'), meta: { requiresAuth: true } },
     { path: '/saved',    name: 'Saved',    component: () => import('../views/SavedView.vue'),   meta: { requiresAuth: true } },
     { path: '/:pathMatch(.*)*', redirect: '/' },
