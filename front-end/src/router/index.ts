@@ -1,8 +1,9 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHashHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth.store'
 
 const router = createRouter({
-  history: createWebHistory(),
+  // Hash history avoids server-side rewrite requirements on refresh.
+  history: createWebHashHistory(),
   routes: [
     { path: '/',         name: 'Home',     component: () => import('../views/HomeView.vue') },
     { path: '/map',      name: 'Map',      component: () => import('../views/MapView.vue') },
