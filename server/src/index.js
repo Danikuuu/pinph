@@ -58,6 +58,19 @@ if (clientDistPath) {
   });
 } else {
   console.log('🧩 Frontend dist not found; SPA refresh will 404 on non-/ routes');
+  // If frontend is hosted separately (common in dev/prod), redirect browser refreshes
+  // to the frontend origin so client-side routing can handle it.
+  app.get(/^(?!\/api).*/, (req, res) => {
+    const clientUrl = process.env.CLIENT_URL;
+    if (!clientUrl) {
+      return res.status(404).json({
+        message: 'Frontend not served by API server. Set CLIENT_URL or deploy front-end/dist with the server.',
+        path: req.originalUrl,
+      });
+    }
+    const target = clientUrl.replace(/\/$/, '') + req.originalUrl;
+    return res.redirect(302, target);
+  });
 }
 
 // Error handler
