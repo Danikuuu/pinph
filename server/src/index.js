@@ -1,9 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { connectDB } from './config/database.js';
 import authRoutes from './routes/auth.routes.js';
 import noteRoutes from './routes/note.routes.js';
@@ -12,29 +9,6 @@ import { errorHandler } from './middleware/error.middleware.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-function firstExistingPath(paths) {
-  for (const p of paths) {
-    if (!p) continue;
-    try {
-      if (fs.existsSync(p)) return p;
-    } catch {
-      // ignore
-    }
-  }
-  return null;
-}
-
-const clientDistPath = firstExistingPath([
-  process.env.CLIENT_DIST, // optional override for deployments
-  path.resolve(__dirname, '../../front-end/dist'),
-  path.resolve(__dirname, '../dist'),
-  path.resolve(process.cwd(), 'front-end/dist'),
-  path.resolve(process.cwd(), '../front-end/dist'),
-  path.resolve(process.cwd(), 'dist'),
-]);
 
 // Middleware
 app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }));
@@ -48,30 +22,6 @@ app.use('/api/users', userRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'ok', message: 'PinNote API running' }));
-
-// Serve frontend (SPA) if dist exists on this server
-if (clientDistPath) {
-  console.log(`🧩 Serving frontend from ${clientDistPath}`);
-  app.use(express.static(clientDistPath));
-  app.get(/^(?!\/api).*/, (req, res) => {
-    res.sendFile(path.join(clientDistPath, 'index.html'));
-  });
-} else {
-  console.log('🧩 Frontend dist not found; SPA refresh will 404 on non-/ routes');
-  // If frontend is hosted separately (common in dev/prod), redirect browser refreshes
-  // to the frontend origin so client-side routing can handle it.
-  app.get(/^(?!\/api).*/, (req, res) => {
-    const clientUrl = process.env.CLIENT_URL;
-    if (!clientUrl) {
-      return res.status(404).json({
-        message: 'Frontend not served by API server. Set CLIENT_URL or deploy front-end/dist with the server.',
-        path: req.originalUrl,
-      });
-    }
-    const target = clientUrl.replace(/\/$/, '') + req.originalUrl;
-    return res.redirect(302, target);
-  });
-}
 
 // Error handler
 app.use(errorHandler);
