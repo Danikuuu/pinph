@@ -1,6 +1,9 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { connectDB } from './config/database.js';
 import authRoutes from './routes/auth.routes.js';
 import noteRoutes from './routes/note.routes.js';
@@ -9,6 +12,9 @@ import { errorHandler } from './middleware/error.middleware.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const clientDistPath = path.resolve(__dirname, '../../front-end/dist');
 
 // Middleware
 app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }));
@@ -22,6 +28,14 @@ app.use('/api/users', userRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'ok', message: 'PinNote API running' }));
+
+// Serve frontend (SPA) if dist exists on this server
+if (fs.existsSync(clientDistPath)) {
+  app.use(express.static(clientDistPath));
+  app.get(/^(?!\/api).*/, (req, res) => {
+    res.sendFile(path.join(clientDistPath, 'index.html'));
+  });
+}
 
 // Error handler
 app.use(errorHandler);
