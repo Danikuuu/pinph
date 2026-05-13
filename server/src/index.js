@@ -7,6 +7,13 @@ import noteRoutes from './routes/note.routes.js';
 import userRoutes from './routes/user.routes.js';
 import { errorHandler } from './middleware/error.middleware.js';
 
+if (!process.env.JWT_SECRET) {
+  console.warn('⚠️  JWT_SECRET is not set — auth tokens will be insecure');
+}
+if (!process.env.CLIENT_URL) {
+  console.warn('⚠️  CLIENT_URL is not set — CORS may block the web app');
+}
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 

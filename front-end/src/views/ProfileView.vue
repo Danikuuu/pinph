@@ -11,7 +11,9 @@
         <div class="flex-1">
           <h1 class="text-2xl font-bold text-white" style="font-family:'Playfair Display',serif;">{{ authStore.user.username }}</h1>
           <p class="text-sm mt-0.5" style="color: #64748b;">{{ authStore.user.email }}</p>
-          <p class="text-sm mt-2" style="color: #cbd5e1;">{{ authStore.user.bio || 'No bio yet.' }}</p>
+          <p class="text-sm mt-2" style="color: #cbd5e1;">
+            <FilteredText :text="authStore.user.bio || 'No bio yet.'" />
+          </p>
           <p class="text-xs mt-2" style="color: #475569;">Member since {{ formatDate(authStore.user.createdAt) }}</p>
         </div>
         <button @click="showEdit = !showEdit"
@@ -74,6 +76,7 @@ import { useAuthStore }  from '../stores/auth.store'
 import { useToastStore } from '../stores/toast.store'
 import { notesAPI, usersAPI } from '../services/api'
 import NoteCard from '../components/NoteCard.vue'
+import FilteredText from '../components/FilteredText.vue'
 import type { Note } from '../types'
 
 const authStore  = useAuthStore()

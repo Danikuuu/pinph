@@ -1,81 +1,227 @@
 <template>
-  <nav class="fixed top-0 left-0 right-0 z-50"
-    style="background: rgba(15,23,42,0.85); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,0.05);">
-    <div class="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
-      <router-link to="/" class="flex items-center gap-2 group no-underline" @click="closeMenu">
-        <div class="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-lg transition-transform group-hover:scale-110"
-          style="background: #3b82f6; box-shadow: 0 4px 14px rgba(59,130,246,0.4);">
+  <header
+    class="navbar fixed top-0 left-0 right-0 z-50 border-b border-white/5 bg-slate-900/90 backdrop-blur-md"
+  >
+    <div class="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4 sm:px-5">
+      <!-- Brand -->
+      <router-link
+        to="/"
+        class="group flex min-w-0 shrink-0 items-center gap-2.5 no-underline"
+        @click="closeMenu"
+      >
+        <div
+          class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-500 text-sm font-bold text-white shadow-lg shadow-blue-500/25 transition-transform group-hover:scale-105"
+        >
           📍
         </div>
-        <span class="font-bold text-white" style="font-family: 'Playfair Display', serif;">
-          PinNote <span style="color: #fcd116;">PH</span>
+        <span
+          class="truncate font-bold tracking-tight text-white"
+          style="font-family: var(--font-display), serif"
+        >
+          PinNote
+          <span class="text-[var(--color-phyellow)]">PH</span>
         </span>
       </router-link>
 
-      <div class="hidden md:flex items-center gap-1">
-        <router-link to="/map" class="nav-link">🗺️ Map</router-link>
-        <template v-if="authStore.isLoggedIn">
-          <router-link to="/saved" class="nav-link">🔖 Saved</router-link>
-          <router-link to="/profile" class="nav-link">
-            <div class="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white mr-1"
-              style="background: #3b82f6;">
-              {{ authStore.user?.username?.[0]?.toUpperCase() }}
-            </div>
-            {{ authStore.user?.username }}
+      <!-- Desktop navigation -->
+      <nav
+        class="ml-auto hidden min-w-0 items-center gap-3 md:flex"
+        aria-label="Main"
+      >
+        <div
+          class="flex items-center rounded-xl border border-white/5 bg-white/[0.04] p-1"
+        >
+          <router-link
+            v-for="item in primaryLinks"
+            :key="item.to"
+            :to="item.to"
+            class="rounded-lg px-3 py-2 text-sm font-medium text-slate-400 no-underline transition-colors hover:bg-white/5 hover:text-slate-200"
+            active-class="bg-white/10 text-white"
+          >
+            {{ item.label }}
           </router-link>
-          <button @click="handleLogout"
-            class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer border-0 bg-transparent"
-            style="color: #f87171;"
-            @mouseover="(e) => (e.target as HTMLElement).style.color='#fca5a5'"
-            @mouseleave="(e) => (e.target as HTMLElement).style.color='#f87171'">
-            Logout
+        </div>
+
+        <template v-if="authStore.isLoggedIn">
+          <div class="flex h-8 w-px shrink-0 bg-white/10" aria-hidden="true" />
+
+          <router-link
+            to="/profile"
+            class="flex max-w-[200px] items-center gap-2 rounded-xl border border-white/5 bg-white/[0.04] py-1.5 pl-1.5 pr-3 no-underline transition-colors hover:border-white/10 hover:bg-white/[0.07]"
+            active-class="!border-blue-500/30 !bg-blue-500/10"
+          >
+            <span
+              class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-500 text-xs font-bold text-white"
+            >
+              {{ authStore.user?.username?.[0]?.toUpperCase() ?? '?' }}
+            </span>
+            <span class="truncate text-sm font-medium text-slate-200">
+              {{ authStore.user?.username }}
+            </span>
+          </router-link>
+
+          <button
+            type="button"
+            class="shrink-0 rounded-xl px-3 py-2 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"
+            @click="handleLogout"
+          >
+            Log out
           </button>
         </template>
+
         <template v-else>
-          <router-link to="/login" class="nav-link">Login</router-link>
-          <router-link to="/register"
-            class="px-4 py-1.5 rounded-lg text-sm font-medium text-white no-underline transition-all hover:scale-105"
-            style="background: #3b82f6;">
-            Sign Up
+          <div class="flex h-8 w-px shrink-0 bg-white/10" aria-hidden="true" />
+
+          <router-link
+            to="/login"
+            class="rounded-xl px-3 py-2 text-sm font-medium text-slate-300 no-underline transition-colors hover:bg-white/5 hover:text-white"
+            active-class="!text-white !bg-white/10"
+          >
+            Log in
+          </router-link>
+          <router-link
+            to="/register"
+            class="rounded-xl bg-blue-500 px-4 py-2 text-sm font-semibold text-white no-underline shadow-lg shadow-blue-500/20 transition-transform hover:scale-[1.02] active:scale-[0.98]"
+          >
+            Sign up
           </router-link>
         </template>
-      </div>
+      </nav>
 
-      <button class="md:hidden mobile-menu-btn" @click="menuOpen = !menuOpen"
-        :aria-expanded="menuOpen" aria-label="Toggle navigation menu">
-        {{ menuOpen ? '✕' : '☰' }}
+      <!-- Mobile menu toggle -->
+      <button
+        type="button"
+        class="ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-slate-800/80 text-slate-200 md:hidden"
+        :aria-expanded="menuOpen"
+        aria-controls="mobile-nav"
+        :aria-label="menuOpen ? 'Close menu' : 'Open menu'"
+        @click="menuOpen = !menuOpen"
+      >
+        <svg
+          v-if="!menuOpen"
+          class="h-5 w-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M4 6h16M4 12h16M4 18h16"
+          />
+        </svg>
+        <svg
+          v-else
+          class="h-5 w-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M6 18L18 6M6 6l12 12"
+          />
+        </svg>
       </button>
     </div>
 
-    <transition name="fade">
-      <div v-if="menuOpen" class="md:hidden mobile-menu-panel">
-        <div class="mobile-menu-inner">
-          <router-link to="/map" class="mobile-link" @click="closeMenu">🗺️ Map</router-link>
+    <!-- Mobile panel -->
+    <transition name="mobile-nav">
+      <div v-if="menuOpen" class="fixed inset-0 top-14 z-40 md:hidden">
+        <button
+          type="button"
+          class="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
+          aria-label="Close menu"
+          @click="closeMenu"
+        />
+        <nav
+          id="mobile-nav"
+          class="relative mx-3 mt-2 overflow-hidden rounded-2xl border border-white/10 bg-slate-900/95 p-2 shadow-2xl shadow-black/40"
+          aria-label="Mobile main"
+        >
+          <router-link
+            v-for="item in primaryLinks"
+            :key="item.to"
+            :to="item.to"
+            class="block w-full rounded-xl px-4 py-3 text-left text-sm font-medium text-slate-200 no-underline transition-colors hover:bg-white/5"
+            active-class="bg-white/10 text-white"
+            @click="closeMenu"
+          >
+            {{ item.label }}
+          </router-link>
+
           <template v-if="authStore.isLoggedIn">
-            <router-link to="/saved" class="mobile-link" @click="closeMenu">🔖 Saved</router-link>
-            <router-link to="/profile" class="mobile-link" @click="closeMenu">👤 {{ authStore.user?.username }}</router-link>
-            <button @click="handleLogout" class="mobile-link logout-btn">Logout</button>
+            <div class="my-2 h-px bg-white/10" />
+
+            <router-link
+              to="/profile"
+              class="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium text-slate-200 no-underline transition-colors hover:bg-white/5"
+              active-class="bg-white/10 text-white"
+              @click="closeMenu"
+            >
+              <span
+                class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-500 text-xs font-bold text-white"
+              >
+                {{ authStore.user?.username?.[0]?.toUpperCase() ?? '?' }}
+              </span>
+              <span class="min-w-0 truncate font-medium">{{ authStore.user?.username }}</span>
+            </router-link>
+
+            <button
+              type="button"
+              class="block w-full rounded-xl px-4 py-3 text-left text-sm font-medium text-red-400 transition-colors hover:bg-red-500/10"
+              @click="handleLogout"
+            >
+              Log out
+            </button>
           </template>
+
           <template v-else>
-            <router-link to="/login" class="mobile-link" @click="closeMenu">Login</router-link>
-            <router-link to="/register" class="mobile-signup" @click="closeMenu">Sign Up</router-link>
+            <div class="my-2 h-px bg-white/10" />
+
+            <router-link
+              to="/login"
+              class="block w-full rounded-xl px-4 py-3 text-left text-sm font-medium text-slate-200 no-underline transition-colors hover:bg-white/5"
+              @click="closeMenu"
+            >
+              Log in
+            </router-link>
+            <router-link
+              to="/register"
+              class="mt-1 block w-full rounded-xl bg-blue-500 px-4 py-3 text-center text-sm font-semibold text-white no-underline shadow-lg shadow-blue-500/25"
+              @click="closeMenu"
+            >
+              Sign up
+            </router-link>
           </template>
-        </div>
+        </nav>
       </div>
     </transition>
-  </nav>
+  </header>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.store'
 import { useToastStore } from '../stores/toast.store'
-import { useRouter } from 'vue-router'
 
-const authStore  = useAuthStore()
+const authStore = useAuthStore()
 const toastStore = useToastStore()
-const router     = useRouter()
-const menuOpen   = ref(false)
+const router = useRouter()
+const route = useRoute()
+const menuOpen = ref(false)
+
+const primaryLinks = computed(() => {
+  const links: { to: string; label: string }[] = [{ to: '/map', label: 'Map' }]
+  if (authStore.isLoggedIn) links.push({ to: '/saved', label: 'Saved' })
+  return links
+})
 
 function closeMenu() {
   menuOpen.value = false
@@ -87,74 +233,26 @@ function handleLogout() {
   toastStore.success('Logged out successfully')
   router.push('/')
 }
+
+watch(
+  () => route.fullPath,
+  () => closeMenu(),
+)
 </script>
 
 <style scoped>
-.nav-link {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  font-size: 14px;
-  color: #cbd5e1;
-  text-decoration: none;
-  border-radius: 8px;
-  transition: all 0.15s;
+.mobile-nav-enter-active,
+.mobile-nav-leave-active {
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
 }
-.nav-link:hover { color: white; background: rgba(255,255,255,0.06); }
-.router-link-active.nav-link { color: white; background: rgba(255,255,255,0.08); }
-
-.mobile-menu-btn {
-  border: 1px solid rgba(255,255,255,0.1);
-  background: rgba(30,41,59,0.9);
-  color: #cbd5e1;
-  border-radius: 8px;
-  width: 34px;
-  height: 34px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
+.mobile-nav-enter-from,
+.mobile-nav-leave-to {
+  opacity: 0;
 }
-
-.mobile-menu-panel {
-  border-top: 1px solid rgba(255,255,255,0.05);
-  background: rgba(15,23,42,0.98);
-}
-
-.mobile-menu-inner {
-  max-width: 28rem;
-  margin: 0 auto;
-  padding: 12px 16px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.mobile-link {
-  text-decoration: none;
-  color: #cbd5e1;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 14px;
-  text-align: left;
-}
-
-.mobile-signup {
-  text-decoration: none;
-  color: white;
-  background: #3b82f6;
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 14px;
-  text-align: center;
-  font-weight: 600;
-}
-
-.logout-btn {
-  cursor: pointer;
-  color: #f87171;
+.mobile-nav-enter-from nav,
+.mobile-nav-leave-to nav {
+  transform: translateY(-8px);
 }
 </style>

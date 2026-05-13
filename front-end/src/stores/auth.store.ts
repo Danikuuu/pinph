@@ -51,5 +51,18 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('pinnote_token')
   }
 
-  return { user, token, loading, isLoggedIn, init, register, login, logout }
+  /** Keeps saved-note bookmarks in sync after toggle save on a note. */
+  function syncSavedNote(noteId: string, savedFlag: boolean) {
+    if (!user.value) return
+    const sid = String(noteId)
+    let next = (user.value.savedNotes ?? []).map(String)
+    if (savedFlag) {
+      if (!next.includes(sid)) next.push(sid)
+    } else {
+      next = next.filter((id) => id !== sid)
+    }
+    user.value.savedNotes = [...next]
+  }
+
+  return { user, token, loading, isLoggedIn, init, register, login, logout, syncSavedNote }
 })

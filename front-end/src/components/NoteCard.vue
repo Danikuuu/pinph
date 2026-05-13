@@ -30,15 +30,19 @@
     <!-- Title + Body -->
     <h3 class="font-semibold text-white mb-1 truncate transition-colors"
       :style="hovered ? 'color: #60a5fa;' : 'color: white;'">
-      {{ note.title }}
+      <FilteredText :text="note.title" />
     </h3>
-    <p class="text-sm mb-3 line-clamp-2" style="color: #94a3b8;">{{ note.body }}</p>
+    <p class="text-sm mb-3 line-clamp-2" style="color: #94a3b8;">
+      <FilteredText :text="note.body" />
+    </p>
 
     <!-- Location -->
     <div class="flex items-center gap-1 text-xs mb-3" style="color: #64748b;">
       <span>📍</span>
       <span class="truncate">
-        {{ note.location?.name || `${note.location?.coordinates?.[1]?.toFixed(4)}°N, ${note.location?.coordinates?.[0]?.toFixed(4)}°E` }}
+        <FilteredText
+          :text="note.location?.name || `${note.location?.coordinates?.[1]?.toFixed(4)}°N, ${note.location?.coordinates?.[0]?.toFixed(4)}°E`"
+        />
       </span>
     </div>
 
@@ -76,6 +80,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import FilteredText from './FilteredText.vue'
 import type { Note } from '../types/index'
 
 defineProps<{ note: Note }>()

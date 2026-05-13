@@ -9,6 +9,16 @@ export const useNotesStore = defineStore('notes', () => {
   const loading     = ref(false)
   const error       = ref<string | null>(null)
 
+  function mergeRemoteNote(updated: Note) {
+    const idx = notes.value.findIndex((n) => n._id === updated._id)
+    if (idx >= 0) {
+      notes.value[idx] = updated
+    }
+    if (activeNote.value?._id === updated._id) {
+      activeNote.value = updated
+    }
+  }
+
   async function fetchAll(params?: Record<string, string>) {
     loading.value = true
     try {
@@ -71,9 +81,14 @@ export const useNotesStore = defineStore('notes', () => {
   async function addComment(noteId: string, text: string) {
     const res = await notesAPI.addComment(noteId, text)
     const updated = res.data.data
-    if (activeNote.value?._id === noteId) {
-      activeNote.value.comments = updated.comments
-    }
+    mergeRemoteNote(updated)
+    return updated
+  }
+
+  async function removeComment(noteId: string, commentId: string) {
+    const res = await notesAPI.deleteComment(noteId, commentId)
+    const updated = res.data.data
+    mergeRemoteNote(updated)
     return updated
   }
 
@@ -82,5 +97,20 @@ export const useNotesStore = defineStore('notes', () => {
     return res.data.data
   }
 
-  return { notes, activeNote, loading, error, fetchAll, fetchNearby, fetchById, createNote, deleteNote, toggleLike, addComment, toggleSave }
+  return {
+    notes,
+    activeNote,
+    loading,
+    error,
+    mergeRemoteNote,
+    fetchAll,
+    fetchNearby,
+    fetchById,
+    createNote,
+    deleteNote,
+    toggleLike,
+    addComment,
+    removeComment,
+    toggleSave,
+  }
 })

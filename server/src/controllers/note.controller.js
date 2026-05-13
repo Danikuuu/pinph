@@ -47,8 +47,8 @@ export const noteController = {
   },
 
   async deleteComment(req, res) {
-    await noteService.deleteComment(req.params.id, req.params.commentId, req.user.id);
-    res.json({ success: true, message: 'Comment deleted' });
+    const note = await noteService.deleteComment(req.params.id, req.params.commentId, req.user.id);
+    res.json({ success: true, data: note });
   },
 
   async toggleSave(req, res) {

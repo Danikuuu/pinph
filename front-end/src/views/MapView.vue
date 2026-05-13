@@ -166,7 +166,12 @@
           v-if="panelNote"
           class="flex-shrink-0 flex flex-col overflow-hidden map-detail-panel"
           style="background: #0f172a; border-left: 1px solid rgba(255,255,255,0.05);">
-          <NoteDetail :note="panelNote" @close="panelNote = null" @deleted="panelNote = null" />
+          <NoteDetail
+            :note="panelNote"
+            @close="panelNote = null"
+            @deleted="panelNote = null"
+            @note-updated="(n) => (panelNote = n)"
+          />
         </div>
       </transition>
     </div>
@@ -197,6 +202,7 @@ import { useNotesStore } from '../stores/note.store'
 import { useAuthStore }  from '../stores/auth.store'
 import { useToastStore } from '../stores/toast.store'
 import type { Note }     from '../types'
+import { htmlWithProfanityBlur, escapeHtml } from '../utils/safeHtml'
 
 const notesStore = useNotesStore()
 const authStore  = useAuthStore()
@@ -318,15 +324,17 @@ function renderMarkers() {
 }
 
 function makePopup(note: Note) {
+  const tRaw = note.title.length > 40 ? `${note.title.slice(0, 40)}…` : note.title
+  const bRaw = note.body.length > 60 ? `${note.body.slice(0, 60)}…` : note.body
   return `<div style="padding:12px;font-family:'DM Sans',sans-serif;">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
       <div style="width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#8b5cf6);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;color:white;">
-        ${note.author?.username?.[0]?.toUpperCase() ?? '?'}
+        ${escapeHtml(note.author?.username?.[0]?.toUpperCase() ?? '?')}
       </div>
-      <span style="font-size:12px;color:#94a3b8;">${note.author?.username}</span>
+      <span style="font-size:12px;color:#94a3b8;">${htmlWithProfanityBlur(note.author?.username ?? '')}</span>
     </div>
-    <p style="font-size:14px;font-weight:600;color:white;margin:0 0 4px;">${note.title.slice(0, 40)}${note.title.length > 40 ? '...' : ''}</p>
-    <p style="font-size:12px;color:#94a3b8;margin:0 0 8px;line-height:1.4;">${note.body.slice(0, 60)}${note.body.length > 60 ? '...' : ''}</p>
+    <p style="font-size:14px;font-weight:600;color:white;margin:0 0 4px;">${htmlWithProfanityBlur(tRaw)}</p>
+    <p style="font-size:12px;color:#94a3b8;margin:0 0 8px;line-height:1.4;">${htmlWithProfanityBlur(bRaw)}</p>
     <div style="display:flex;gap:12px;font-size:12px;color:#64748b;">
       <span>❤️ ${note.likesCount ?? note.likes?.length ?? 0}</span>
       <span>💬 ${note.comments?.length ?? 0}</span>

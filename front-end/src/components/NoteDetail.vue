@@ -48,24 +48,28 @@
           Approximate location
         </span>
         <h2 class="text-xl font-bold text-white mb-3" style="font-family: 'Playfair Display', serif;">
-          {{ note.title }}
+          <FilteredText :text="note.title" />
         </h2>
-        <p class="text-sm leading-relaxed whitespace-pre-wrap" style="color: #cbd5e1;">{{ note.body }}</p>
+        <p class="text-sm leading-relaxed whitespace-pre-wrap" style="color: #cbd5e1;">
+          <FilteredText :text="note.body" />
+        </p>
       </div>
 
       <!-- Tags -->
       <div v-if="note.tags?.length" class="flex flex-wrap gap-2">
         <span v-for="tag in note.tags" :key="tag"
-          class="text-xs px-2 py-0.5 rounded-full"
+          class="text-xs px-2 py-0.5 rounded-full inline-flex items-center gap-0.5"
           style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); color: #94a3b8;">
-          #{{ tag }}
+          #<FilteredText :text="tag" />
         </span>
       </div>
 
       <!-- Location card -->
       <div class="rounded-xl p-3 text-sm" style="background: rgba(59,130,246,0.05); border: 1px solid rgba(59,130,246,0.15);">
         <p class="text-xs uppercase tracking-wider mb-1" style="color: #64748b;">📍 Location</p>
-        <p class="font-medium text-white">{{ note.location?.name || 'Unnamed location' }}</p>
+        <p class="font-medium text-white">
+          <FilteredText :text="note.location?.name || 'Unnamed location'" />
+        </p>
         <p class="text-xs mt-1 font-mono" style="color: #64748b;">
           {{ note.location?.coordinates?.[1]?.toFixed(6) }}°N,
           {{ note.location?.coordinates?.[0]?.toFixed(6) }}°E
@@ -130,7 +134,7 @@
                 <span class="text-sm font-medium text-white">{{ comment.user?.username }}</span>
                 <span class="text-xs" style="color: #64748b;">{{ timeAgo(comment.createdAt) }}</span>
               </div>
-              <p class="text-sm mt-0.5" style="color: #cbd5e1;">{{ comment.text }}</p>
+              <p class="text-sm mt-0.5" style="color: #cbd5e1;"><FilteredText :text="comment.text" /></p>
             </div>
             <button v-if="comment.user?._id === authStore.user?._id"
               @click="deleteComment(comment._id)"
@@ -149,23 +153,53 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useAuthStore }  from '../stores/auth.store'
 import { useNotesStore } from '../stores/note.store'
 import { useToastStore } from '../stores/toast.store'
-import { notesAPI }      from '../services/api'
+import FilteredText      from './FilteredText.vue'
 import type { Note }     from '../types'
 
 const props = defineProps<{ note: Note }>()
-const emit  = defineEmits<{ close: []; deleted: [] }>()
+const emit  = defineEmits<{ close: []; deleted: []; noteUpdated: [note: Note] }>()
 
 const authStore  = useAuthStore()
 const notesStore = useNotesStore()
 const toastStore = useToastStore()
 
-const liked              = ref(props.note.likes?.includes(authStore.user?._id ?? '') ?? false)
+function userLikedNote(note: Note): boolean {
+  const uid = authStore.user?._id
+  if (!uid || !note.likes?.length) return false
+  return note.likes.some((id) => String(id) === String(uid))
+}
+
+function noteIsSaved(noteId: string): boolean {
+  const ids = authStore.user?.savedNotes ?? []
+  return ids.some((id) => String(id) === String(noteId))
+}
+
+const liked              = ref(userLikedNote(props.note))
 const likeCount          = ref(props.note.likesCount ?? props.note.likes?.length ?? 0)
-const saved              = ref(false)
+const saved              = ref(noteIsSaved(props.note._id))
+
+watch(
+  () => props.note,
+  (n) => {
+    if (!n) return
+    liked.value = userLikedNote(n)
+    likeCount.value = n.likesCount ?? n.likes?.length ?? 0
+    saved.value = noteIsSaved(n._id)
+  },
+  { deep: true },
+)
+
+watch(
+  () => authStore.user?.savedNotes,
+  () => {
+    if (props.note) saved.value = noteIsSaved(props.note._id)
+  },
+  { deep: true },
+)
 const commentText        = ref('')
 const submittingComment  = ref(false)
 
@@ -188,6 +222,7 @@ async function handleSave() {
   try {
     const result = await notesStore.toggleSave(props.note._id)
     saved.value = result.saved
+    authStore.syncSavedNote(props.note._id, result.saved)
     toastStore.success(result.saved ? 'Note saved!' : 'Note unsaved')
   } catch { toastStore.error('Failed to save note') }
 }
@@ -205,17 +240,18 @@ async function submitComment() {
   if (!commentText.value.trim()) return
   submittingComment.value = true
   try {
-    await notesStore.addComment(props.note._id, commentText.value.trim())
+    const updated = await notesStore.addComment(props.note._id, commentText.value.trim())
     commentText.value = ''
     toastStore.success('Comment posted!')
+    emit('noteUpdated', updated)
   } catch { toastStore.error('Failed to post comment') }
   finally { submittingComment.value = false }
 }
 
 async function deleteComment(commentId: string) {
   try {
-    await notesAPI.deleteComment(props.note._id, commentId)
-    props.note.comments = props.note.comments.filter(c => c._id !== commentId)
+    const updated = await notesStore.removeComment(props.note._id, commentId)
+    emit('noteUpdated', updated)
   } catch { toastStore.error('Failed to delete comment') }
 }
 

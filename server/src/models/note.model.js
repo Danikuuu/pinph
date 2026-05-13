@@ -22,6 +22,7 @@ const noteSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 noteSchema.index({ location: '2dsphere' });
+noteSchema.index({ title: 'text', body: 'text' });
 
 // Virtual for like count
 noteSchema.virtual('likesCount').get(function() {

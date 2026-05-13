@@ -37,11 +37,12 @@ export const noteRepository = {
   },
 
   async create(data) {
-    return (await Note.create(data)).populate ? Note.create(data) : Note.create(data);
+    const created = await Note.create(data);
+    return Note.findById(created._id).populate('author', AUTHOR_FIELDS);
   },
 
   async updateById(id, data) {
-    return Note.findByIdAndUpdate(id, data, { new: true }).populate('author', AUTHOR_FIELDS);
+    return Note.findByIdAndUpdate(id, data, { new: true, runValidators: true }).populate('author', AUTHOR_FIELDS);
   },
 
   async deleteById(id) {
@@ -51,9 +52,11 @@ export const noteRepository = {
   async toggleLike(noteId, userId) {
     const note = await Note.findById(noteId);
     if (!note) return null;
-    const liked = note.likes.includes(userId);
+    const uid = userId.toString();
+    const liked = note.likes.some((id) => id.toString() === uid);
     if (liked) {
-      note.likes.pull(userId);
+      const existing = note.likes.find((id) => id.toString() === uid);
+      if (existing) note.likes.pull(existing);
     } else {
       note.likes.push(userId);
     }
@@ -66,7 +69,9 @@ export const noteRepository = {
       noteId,
       { $push: { comments: { user: userId, text } } },
       { new: true }
-    ).populate('comments.user', AUTHOR_FIELDS);
+    )
+      .populate('author', AUTHOR_FIELDS)
+      .populate('comments.user', AUTHOR_FIELDS);
   },
 
   async deleteComment(noteId, commentId, userId) {
@@ -74,6 +79,8 @@ export const noteRepository = {
       noteId,
       { $pull: { comments: { _id: commentId, user: userId } } },
       { new: true }
-    );
+    )
+      .populate('author', AUTHOR_FIELDS)
+      .populate('comments.user', AUTHOR_FIELDS);
   },
 };

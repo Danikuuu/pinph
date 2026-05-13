@@ -12,5 +12,5 @@
 
 <script setup lang="ts">
 import NavBar from './components/NavBar.vue'
-import ToastContainer from './components/ToastConatiner.vue'
+import ToastContainer from './components/ToastContainer.vue'
 </script>

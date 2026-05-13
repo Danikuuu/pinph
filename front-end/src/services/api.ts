@@ -1,8 +1,10 @@
 import axios from 'axios';
 import type { User, Note, UserProfile, UpdateProfileData, ApiResponse, PaginatedNotes } from '../types';
 
+const apiBase = (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/$/, '')
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL + '/api',
+  baseURL: `${apiBase}/api`,
   headers: { 'Content-Type': 'application/json' },
 })
 
@@ -13,17 +15,24 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle 401
+// Handle 401 — do not hijack failed login/register or force reload while already on login
 api.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401) {
-      localStorage.removeItem('pinnote_token');
-      window.location.href = '/login';
+      const url = String(err.config?.url ?? '')
+      const isAuthAttempt = url.includes('/auth/login') || url.includes('/auth/register')
+      if (!isAuthAttempt) {
+        localStorage.removeItem('pinnote_token')
+        const path = window.location.pathname
+        if (!path.includes('/login') && !path.includes('/register')) {
+          window.location.href = '/login'
+        }
+      }
     }
-    return Promise.reject(err);
+    return Promise.reject(err)
   }
-);
+)
 
 // Define types
 interface RegisterData {
@@ -57,7 +66,7 @@ export const notesAPI = {
   toggleLike:  (id: string) => api.post<ApiResponse<{ liked: boolean; likesCount: number }>>(`/notes/${id}/like`),
   toggleSave:  (id: string) => api.post<ApiResponse<{ saved: boolean }>>(`/notes/${id}/save`),
   addComment:  (id: string, text: string) => api.post<ApiResponse<Note>>(`/notes/${id}/comments`, { text }),
-  deleteComment: (id: string, commentId: string) => api.delete<ApiResponse<void>>(`/notes/${id}/comments/${commentId}`),
+  deleteComment: (id: string, commentId: string) => api.delete<ApiResponse<Note>>(`/notes/${id}/comments/${commentId}`),
 }
 // USERS
 export const usersAPI = {
